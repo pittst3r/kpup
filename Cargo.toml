@@ -1,0 +1,15 @@
+[package]
+name = "kpup"
+version = "0.0.0"
+authors = ["Robbie Pitts <me@robbie-pitts.com>"]
+edition = "2018"
+license = "MIT"
+
+[[bin]]
+name = "kpup"
+path = "src/main.rs"
+
+[dependencies]
+structopt = "0.3"
+libproc = { version = "0.9.1", features = ["macosx_10_9"] }
+nix = "0.18.0"
