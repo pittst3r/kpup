@@ -40,7 +40,7 @@ fn main() {
                                         SocketInfoKind::Tcp => {
                                             // access to the member of `soi_proto` is unsafe becasuse of union type.
                                             let info = unsafe { socket.psi.soi_proto.pri_tcp };
-                                            // change endian and cut off because insi_lport is network endian and 16bit witdh.
+                                            // change endian and cut off because insi_lport is network endian and 16bit width.
                                             let mut port = 0;
                                             port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
                                             port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
