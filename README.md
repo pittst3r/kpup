@@ -25,5 +25,5 @@ FLAGS:
     -V, --version    Prints version information
 
 ARGS:
-    <port>    port
+    <port>    the port on which the process is listening
 ```

@@ -17,7 +17,7 @@ struct Cli {
     )]
     force: bool,
 
-    #[structopt(required = true, help = "port")]
+    #[structopt(required = true, help = "the port on which the process is listening")]
     port: i32,
 }
 
