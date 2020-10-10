@@ -1,10 +1,11 @@
 # `kpup`
 
-<u>K</u>ill <u>p</u>rocess <u>u</u>sing <u>p</u>ort, for *nix.
+**K**ill **p**rocess **u**sing **p**ort, for *nix.
 
-Tired of using `lsof` to find the PID of an orphan process, then `kill`ing
-with the PID? This tool simply kills the process that is using the given port.
-Sends a `SIGINT` by default, while the `-f`/`--force` flag sends a `SIGKILL`.
+Hate it when orphan processes hog a port? Tired of using `lsof` to find the
+PID, then `kill`ing with the PID? This tool kills the process that is listening
+on the given port in one go. Sends a `SIGINT` by default, while the `-f` flag
+sends a `SIGKILL`.
 
 ## Installation
 
