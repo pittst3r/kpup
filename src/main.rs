@@ -24,26 +24,25 @@ struct Cli {
 fn main() {
     let args = Cli::from_args();
     let pid = find_pid(args.port);
-
-    if pid > 0 {
-        let sig = if args.force {
-            nix::sys::signal::SIGKILL
-        } else {
-            nix::sys::signal::SIGINT
-        };
-        match nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), sig) {
-            Ok(_) => println!("Killed process {} with {}", pid, sig),
-            Err(err) => println!("Failed to kill process {} with {}: {:?}", pid, sig, err),
-        }
+    let signal = if args.force {
+        nix::sys::signal::SIGKILL
     } else {
-        println!("Unable to find a process using port {}", args.port);
+        nix::sys::signal::SIGINT
+    };
+
+    match pid {
+        Ok(p) => match nix::sys::signal::kill(nix::unistd::Pid::from_raw(p), signal) {
+            Ok(_) => println!("Killed process {} with {}", p, signal),
+            Err(err) => println!("Failed to kill process {} with {}: {:?}", p, signal, err),
+        },
+        Err(reason) => println!("{}", reason),
     }
 }
 
-fn find_pid(port: u32) -> i32 {
+fn find_pid(port: u32) -> Result<i32, String> {
     let given_port: i32 = match port.try_into() {
         Ok(p) => p,
-        Err(_) => panic!("Unable to use given port for search"),
+        Err(_) => return Err(String::from("Unable to use given port for search")),
     };
     let mut found_pid = 0;
 
@@ -84,10 +83,13 @@ fn find_pid(port: u32) -> i32 {
             }
 
             if found_pid > 0 {
-                break;
+                return match found_pid.try_into() {
+                    Ok(pid) => Ok(pid),
+                    Err(_) => Err(String::from("Error finding PID")),
+                };
             }
         }
     }
 
-    return found_pid.try_into().unwrap();
+    Err(String::from("Could not find process using given port"))
 }
