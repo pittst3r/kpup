@@ -18,13 +18,36 @@ struct Cli {
     force: bool,
 
     #[structopt(required = true, help = "the port on which the process is listening")]
-    port: i32,
+    port: u32,
 }
 
 fn main() {
     let args = Cli::from_args();
+    let pid = find_pid(args.port);
+
+    if pid > 0 {
+        let sig = if args.force {
+            nix::sys::signal::SIGKILL
+        } else {
+            nix::sys::signal::SIGINT
+        };
+        match nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), sig) {
+            Ok(_) => println!("Killed process {} with {}", pid, sig),
+            Err(err) => println!("Failed to kill process {} with {}: {:?}", pid, sig, err),
+        }
+    } else {
+        println!("Unable to find a process using port {}", args.port);
+    }
+}
+
+fn find_pid(port: u32) -> i32 {
+    let given_port: i32 = match port.try_into() {
+        Ok(p) => p,
+        Err(_) => panic!("Unable to use given port for search"),
+    };
+    let mut found_pid = 0;
+
     if let Ok(pids) = listpids(ProcType::ProcAllPIDS) {
-        let mut found_pid = 0;
         for pid in pids {
             if let Ok(info) = pidinfo::<BSDInfo>(pid.try_into().unwrap(), 0) {
                 if let Ok(fds) =
@@ -41,11 +64,11 @@ fn main() {
                                             // access to the member of `soi_proto` is unsafe because of union type.
                                             let info = unsafe { socket.psi.soi_proto.pri_tcp };
                                             // change endian and cut off because insi_lport is network endian and 16bit width.
-                                            let mut port = 0;
-                                            port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
-                                            port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
+                                            let mut current_port = 0;
+                                            current_port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
+                                            current_port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
 
-                                            if args.port == port {
+                                            if given_port == current_port {
                                                 found_pid = pid;
                                                 break;
                                             }
@@ -59,28 +82,12 @@ fn main() {
                     }
                 }
             }
+
             if found_pid > 0 {
                 break;
             }
         }
-        if found_pid > 0 {
-            let sig = if args.force {
-                nix::sys::signal::SIGKILL
-            } else {
-                nix::sys::signal::SIGINT
-            };
-            match nix::sys::signal::kill(
-                nix::unistd::Pid::from_raw(found_pid.try_into().unwrap()),
-                sig,
-            ) {
-                Ok(_) => println!("Killed process {} with {}", found_pid, sig),
-                Err(err) => println!(
-                    "Failed to kill process {} with {}: {:?}",
-                    found_pid, sig, err
-                ),
-            }
-        } else {
-            println!("Unable to find a process using port {}", args.port);
-        }
     }
+
+    return found_pid.try_into().unwrap();
 }
