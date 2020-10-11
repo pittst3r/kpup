@@ -1,5 +1,5 @@
 use libproc::libproc::bsd_info::BSDInfo;
-use libproc::libproc::file_info::{pidfdinfo, ListFDs, ProcFDType};
+use libproc::libproc::file_info::{pidfdinfo, ListFDs, ProcFDInfo, ProcFDType};
 use libproc::libproc::net_info::{SocketFDInfo, SocketInfoKind};
 use libproc::libproc::proc_pid::{listpidinfo, listpids, pidinfo, ProcType};
 use nix;
@@ -44,52 +44,49 @@ fn find_pid(port: u32) -> Result<i32, String> {
         Ok(p) => p,
         Err(_) => return Err(String::from("Unable to use given port for search")),
     };
-    let mut found_pid = 0;
-
     if let Ok(pids) = listpids(ProcType::ProcAllPIDS) {
         for pid in pids {
-            if let Ok(info) = pidinfo::<BSDInfo>(pid.try_into().unwrap(), 0) {
-                if let Ok(fds) =
-                    listpidinfo::<ListFDs>(pid.try_into().unwrap(), info.pbi_nfiles as usize)
-                {
-                    for fd in &fds {
-                        match fd.proc_fdtype.into() {
-                            ProcFDType::Socket => {
-                                if let Ok(socket) =
-                                    pidfdinfo::<SocketFDInfo>(pid.try_into().unwrap(), fd.proc_fd)
-                                {
-                                    match socket.psi.soi_kind.into() {
-                                        SocketInfoKind::Tcp => {
-                                            // access to the member of `soi_proto` is unsafe because of union type.
-                                            let info = unsafe { socket.psi.soi_proto.pri_tcp };
-                                            // change endian and cut off because insi_lport is network endian and 16bit width.
-                                            let mut current_port = 0;
-                                            current_port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
-                                            current_port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
-
-                                            if given_port == current_port {
-                                                found_pid = pid;
-                                                break;
-                                            }
-                                        }
-                                        _ => (),
-                                    }
-                                }
-                            }
-                            _ => (),
+            if let Ok(pid) = pid.try_into() {
+                if let Ok(info) = pidinfo::<BSDInfo>(pid, 0) {
+                    if let Ok(fds) = listpidinfo::<ListFDs>(pid, info.pbi_nfiles as usize) {
+                        match search_fds(given_port, pid, fds) {
+                            Ok(found_pid) => return Ok(found_pid),
+                            Err(_) => (),
                         }
                     }
                 }
-            }
-
-            if found_pid > 0 {
-                return match found_pid.try_into() {
-                    Ok(pid) => Ok(pid),
-                    Err(_) => Err(String::from("Error finding PID")),
-                };
             }
         }
     }
 
     Err(String::from("Could not find process using given port"))
+}
+
+fn search_fds(port: i32, pid: i32, fds: std::vec::Vec<ProcFDInfo>) -> Result<i32, ()> {
+    for fd in fds {
+        match fd.proc_fdtype.into() {
+            ProcFDType::Socket => {
+                if let Ok(socket) = pidfdinfo::<SocketFDInfo>(pid, fd.proc_fd) {
+                    match socket.psi.soi_kind.into() {
+                        SocketInfoKind::Tcp => {
+                            // access to the member of `soi_proto` is unsafe because of union type.
+                            let info = unsafe { socket.psi.soi_proto.pri_tcp };
+                            // change endian and cut off because insi_lport is network endian and 16bit width.
+                            let mut current_port = 0;
+                            current_port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
+                            current_port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
+
+                            if port == current_port {
+                                return Ok(pid);
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+
+    Err(())
 }
