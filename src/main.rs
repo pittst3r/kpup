@@ -62,21 +62,14 @@ fn find_pid(port: u32) -> Result<i32, String> {
     Err(String::from("Could not find process using given port"))
 }
 
-fn search_fds(port: i32, pid: i32, fds: std::vec::Vec<ProcFDInfo>) -> Result<i32, ()> {
+fn search_fds(port: i32, pid: i32, fds: Vec<ProcFDInfo>) -> Result<i32, ()> {
     for fd in fds {
         match fd.proc_fdtype.into() {
             ProcFDType::Socket => {
                 if let Ok(socket) = pidfdinfo::<SocketFDInfo>(pid, fd.proc_fd) {
                     match socket.psi.soi_kind.into() {
                         SocketInfoKind::Tcp => {
-                            // access to the member of `soi_proto` is unsafe because of union type.
-                            let info = unsafe { socket.psi.soi_proto.pri_tcp };
-                            // change endian and cut off because insi_lport is network endian and 16bit width.
-                            let mut current_port = 0;
-                            current_port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
-                            current_port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
-
-                            if port == current_port {
+                            if port == get_port_from_socket(socket) {
                                 return Ok(pid);
                             }
                         }
@@ -89,4 +82,15 @@ fn search_fds(port: i32, pid: i32, fds: std::vec::Vec<ProcFDInfo>) -> Result<i32
     }
 
     Err(())
+}
+
+fn get_port_from_socket(socket: SocketFDInfo) -> i32 {
+    let info = unsafe { socket.psi.soi_proto.pri_tcp };
+    // Below is copypasta from a libproc test; don't actually understand it 😅
+    // Change endianess and cut off because insi_lport is network endian and 16bit width.
+    let mut current_port = 0;
+    current_port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
+    current_port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
+
+    return current_port;
 }
