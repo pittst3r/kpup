@@ -2,10 +2,9 @@
 
 **K**ill **p**rocess **u**sing **p**ort, for *nix.
 
-Hate it when a process using a port gets orphaned? Tired of using `lsof` to find
-the PID, then `kill`ing with the PID? This tool kills the process that is
-listening on the given port in one go. Sends a `SIGINT` by default, while the
-`-f` flag sends a `SIGKILL`.
+Hate it when a process using a port gets orphaned? This tool kills the process
+that is listening on the given port in a single command. Sends a `SIGINT` by
+default, while the `-f` flag sends a `SIGKILL`.
 
 ## Installation
 
