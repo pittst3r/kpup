@@ -11,5 +11,5 @@ path = "src/main.rs"
 
 [dependencies]
 structopt = "0.3"
-libproc = { version = "0.9.1", features = ["macosx_10_9"] }
+libproc = "0.9.1"
 nix = "0.18.0"
