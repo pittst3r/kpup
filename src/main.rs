@@ -90,6 +90,7 @@ fn get_port_from_socket(socket: SocketFDInfo) -> i32 {
     // Below is copypasta from a libproc test; don't actually understand it 😅
     // Change endianess and cut off because insi_lport is network endian and 16bit width.
     let mut current_port = 0;
+
     current_port |= info.tcpsi_ini.insi_lport >> 8 & 0x00ff;
     current_port |= info.tcpsi_ini.insi_lport << 8 & 0xff00;
 

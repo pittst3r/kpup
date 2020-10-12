@@ -1,6 +1,6 @@
 [package]
 name = "kpup"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Robbie Pitts <me@robbie-pitts.com>"]
 edition = "2018"
 license = "MIT"
