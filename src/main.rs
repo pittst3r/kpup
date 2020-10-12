@@ -1,3 +1,4 @@
+extern crate libproc;
 use libproc::libproc::bsd_info::BSDInfo;
 use libproc::libproc::file_info::{pidfdinfo, ListFDs, ProcFDInfo, ProcFDType};
 use libproc::libproc::net_info::{SocketFDInfo, SocketInfoKind};
