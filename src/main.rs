@@ -32,26 +32,26 @@ fn main() {
     };
 
     match pid {
-        Ok(p) => match signal::kill(unistd::Pid::from_raw(p), signal) {
+        Some(p) => match signal::kill(unistd::Pid::from_raw(p), signal) {
             Ok(_) => println!("Killed process {} with {}", p, signal),
             Err(err) => println!("Failed to kill process {} with {}: {:?}", p, signal, err),
         },
-        Err(reason) => println!("{}", reason),
+        None => println!("Unable to find process listening on given port"),
     }
 }
 
-fn find_pid(port: u32) -> Result<i32, String> {
+fn find_pid(port: u32) -> Option<i32> {
     let given_port: i32 = match port.try_into() {
         Ok(p) => p,
-        Err(_) => return Err(String::from("Unable to use given port for search")),
+        Err(_) => return None,
     };
     if let Ok(pids) = listpids(ProcType::ProcAllPIDS) {
         for pid in pids {
             if let Ok(pid) = pid.try_into() {
                 if let Ok(info) = pidinfo::<BSDInfo>(pid, 0) {
                     if let Ok(fds) = listpidinfo::<ListFDs>(pid, info.pbi_nfiles as usize) {
-                        if let Ok(found_pid) = search_fds(given_port, pid, fds) {
-                            return Ok(found_pid);
+                        if let Some(found_pid) = search_fds(given_port, pid, fds) {
+                            return Some(found_pid);
                         }
                     }
                 }
@@ -59,23 +59,23 @@ fn find_pid(port: u32) -> Result<i32, String> {
         }
     }
 
-    Err(String::from("Could not find process using given port"))
+    None
 }
 
-fn search_fds(port: i32, pid: i32, fds: Vec<ProcFDInfo>) -> Result<i32, ()> {
+fn search_fds(port: i32, pid: i32, fds: Vec<ProcFDInfo>) -> Option<i32> {
     for fd in fds {
         if let ProcFDType::Socket = fd.proc_fdtype.into() {
             if let Ok(socket) = pidfdinfo::<SocketFDInfo>(pid, fd.proc_fd) {
                 if let SocketInfoKind::Tcp = socket.psi.soi_kind.into() {
                     if port == get_port_from_socket(socket) {
-                        return Ok(pid);
+                        return Some(pid);
                     }
                 }
             }
         }
     }
 
-    Err(())
+    None
 }
 
 fn get_port_from_socket(socket: SocketFDInfo) -> i32 {
